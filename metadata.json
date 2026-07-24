@@ -1,0 +1,13 @@
+{
+  "name": "Monitor Presets",
+  "description": "Save monitor presets, with enabled monitors, resolution, dpi",
+  "uuid": "monitor-presets@kretskonst.se",
+  "shell-version": [
+    "50"
+  ],
+  "settings-schema": "org.gnome.shell.extensions.monitor-presets",
+  "donations":{
+    "kofi": "joakimlundborg",
+    "github":"cortex,"
+  }
+}

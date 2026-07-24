@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schemalist>
+  <schema id="org.gnome.shell.extensions.monitor-presets"
+          path="/org/gnome/shell/extensions/monitor-presets/">
+    <key name="presets" type="s">
+      <default>'[]'</default>
+      <summary>Stored monitor presets</summary>
+    </key>
+  </schema>
+</schemalist>
