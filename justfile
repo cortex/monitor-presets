@@ -6,7 +6,13 @@ nested:
 
 zip:
     rm -f monitor-presets.zip
-    zip monitor-presets.zip . -r -x ".git/*" -x flake.* -x justfile -x README.md -x schemas/*.compiled
+    zip monitor-presets.zip . -r \
+        -x ".git/*" \
+        -x flake.* \
+        -x justfile \
+        -x README.md \
+        -x schemas/*.compiled \
+        -x assets/*
 
 lint:
     shexli monitor-presets.zip
