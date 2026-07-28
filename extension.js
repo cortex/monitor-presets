@@ -102,7 +102,7 @@ const PresetMenuItem = GObject.registerClass(
         "key-focus-out", () => { this._finishEdit(); },
         "activate", () => { this._finishEdit(); });
 
-      entry.grab_key_focus();
+      this._entry.grab_key_focus();
     }
 
     _finishEdit() {
