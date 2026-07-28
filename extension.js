@@ -6,6 +6,7 @@ import Gio from "gi://Gio";
 import GLib from "gi://GLib";
 import GObject from "gi://GObject";
 import St from "gi://St";
+import Meta from "gi://Meta";
 
 import {
   Extension,
@@ -34,6 +35,7 @@ const PresetMenuItem = GObject.registerClass(
         text: preset.label,
         x_expand: true,
         y_align: Clutter.ActorAlign.CENTER,
+        visible: true,
       });
       this._descriptionBox.add_child(this._label);
 
@@ -44,11 +46,11 @@ const PresetMenuItem = GObject.registerClass(
         visible: false,
       });
       this._entry.clutter_text.connectObject(
-        "key-focus-out",
+        "activate",
         () => {
           this._finishEdit();
         },
-        "activate",
+        "key-focus-out",
         () => {
           this._finishEdit();
         },
@@ -99,27 +101,53 @@ const PresetMenuItem = GObject.registerClass(
       this.connect("activate", () => {
         this._callbacks.onActivate(this._preset);
       });
+      this._startEditLaterId = 0;
+      if (preset.new) {
+        this._startEditLaterId = global.compositor
+          .get_laters()
+          .add(Meta.LaterType.AFTER_REDRAW, () => {
+            this._startEdit();
+            return GLib.SOURCE_REMOVE;
+          });
+      }
     }
-
+    destroy() {
+      if (this._startEditLaterId) {
+        global.compositor.get_laters().remove(this._startEditLaterId);
+        this._startEditLaterId = 0;
+      }
+      super.destroy();
+    }
     _startEdit() {
-      this._editButton.reactive = false;
+      this.reactive = false;
       this._entry.visible = true;
       this._label.visible = false;
       this._entry.grab_key_focus();
+      this._entry.clutter_text.set_selection(0, -1);
     }
 
     _finishEdit() {
+      this.reactive = true;
       const newLabel = this._entry.get_text().trim();
       let changed = false;
       if (newLabel && newLabel !== this._preset.label) {
         this._preset.label = newLabel;
-        this._label.text = newLabel;
         changed = true;
       }
+      if (this._preset.new) {
+        this._preset.new = undefined;
+        changed = true;
+      }
+      this._label.text = this._preset.label;
       this._entry.visible = false;
       this._label.visible = true;
-      this._editButton.reactive = true;
-      if (changed) this._callbacks.onEdit(this._preset);
+      if (changed) {
+        const preset = this._preset;
+        GLib.idle_add(GLib.PRIORITY_DEFAULT_IDLE, () => {
+          this._callbacks.onEdit(preset);
+          return GLib.SOURCE_REMOVE;
+        });
+      }
     }
   },
 );
@@ -141,8 +169,10 @@ const Indicator = GObject.registerClass(
         }),
       );
       this._presets = [];
+      this.menu.connect("open-state-changed", (menu, open) => {
+        if (!open) this._finishAllEdits();
+      });
       this.setItems(this._loadItems());
-      this._rebuildMenu();
     }
     destroy() {
       this._settings.disconnectObject(this);
@@ -151,29 +181,55 @@ const Indicator = GObject.registerClass(
     _rebuildMenu() {
       this.menu.removeAll();
       for (const preset of this._presets) {
-        const item = new PresetMenuItem(preset, {
+        const presetMenuItem = new PresetMenuItem(preset, {
           onActivate: (p) => this._applyPreset(p),
           onEdit: (p) => this._saveEditedPreset(p),
           onDelete: (p) => this._deletePreset(p),
         });
-        this.menu.addMenuItem(item);
+        this.menu.addMenuItem(presetMenuItem);
       }
       const separator = new PopupMenu.PopupSeparatorMenuItem();
       this.menu.addMenuItem(separator);
-      const addCurrent = new PopupMenu.PopupImageMenuItem(
-        _("Save current"),
-        "bookmark-new-symbolic",
-        {},
+
+      const addCurrent = new PopupMenu.PopupBaseMenuItem({
+        reactive: false,
+        can_focus: false,
+      });
+      addCurrent.add_child(
+        new St.Icon({
+          icon_name: "bookmark-new-symbolic",
+          style_class: "popup-menu-icon",
+        }),
+      );
+      addCurrent.add_child(
+        new St.Label({
+          text: _("Save current"),
+          x_expand: true,
+          y_align: Clutter.ActorAlign.CENTER,
+        }),
       );
 
-      addCurrent.connect("activate", async () => {
-        let setting = await getDisplayState();
-        this.addItem("Preset 1", setting);
+      const addButton = new St.Button({
+        child: new St.Icon({
+          icon_name: "list-add-symbolic",
+          style_class: "popup-menu-icon",
+        }),
+        style_class: "icon-button",
       });
-
+      addButton.connect("clicked", async () => {
+        const setting = await getDisplayState();
+        this.addItem(_("New preset"), setting);
+      });
+      addCurrent.add_child(addButton);
       this.menu.addMenuItem(addCurrent);
     }
-
+    _finishAllEdits() {
+      for (const item of this.menu._getMenuItems()) {
+        if (item instanceof PresetMenuItem && item._entry.visible) {
+          item._finishEdit();
+        }
+      }
+    }
     async _applyPreset(preset) {
       try {
         const serial = await getDisplaySerial();
@@ -193,13 +249,11 @@ const Indicator = GObject.registerClass(
         presets[idx] = preset;
         this._saveItems(presets);
       }
-      this._rebuildMenu();
     }
 
     _deletePreset(preset) {
       const presets = this._loadItems().filter((p) => p.id !== preset.id);
       this._saveItems(presets);
-      this._rebuildMenu();
     }
 
     setItems(presets) {
@@ -223,7 +277,8 @@ const Indicator = GObject.registerClass(
 
     addItem(label, blob) {
       const items = this._loadItems();
-      items.push({ id: GLib.uuid_string_random(), label, blob });
+      const id = GLib.uuid_string_random();
+      items.push({ id, label, blob, new: true });
       this._saveItems(items);
     }
   },
