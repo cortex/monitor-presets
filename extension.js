@@ -37,6 +37,24 @@ const PresetMenuItem = GObject.registerClass(
       });
       this._descriptionBox.add_child(this._label);
 
+      this._entry = new St.Entry({
+        text: this._preset.label,
+        x_expand: true,
+        can_focus: true,
+        visible: false,
+      });
+      this._entry.clutter_text.connectObject(
+        "key-focus-out",
+        () => {
+          this._finishEdit();
+        },
+        "activate",
+        () => {
+          this._finishEdit();
+        },
+      );
+      this._descriptionBox.add_child(this._entry);
+
       this.description = new St.Label({
         text: preset.blob[0][5][0][1],
         x_expand: true,
@@ -61,7 +79,7 @@ const PresetMenuItem = GObject.registerClass(
         child: this._editIcon,
         style_class: "icon-button",
       });
-      this._editButton.connect("clicked", () => this._startEdit());
+      this._editButton.connect("clicked", () => this._startEdit(this));
       buttonBox.add_child(this._editButton);
 
       this._deleteIcon = new St.Icon({
@@ -83,38 +101,25 @@ const PresetMenuItem = GObject.registerClass(
       });
     }
 
-    destroy() {
-        this._entry?.clutter_text.disconnectObject(this);
-        super.destroy();
-    }
-
     _startEdit() {
-      this._entry = new St.Entry({
-        text: this._preset.label,
-        x_expand: true,
-        can_focus: true,
-      });
-      this._editButton.enabled = false;
-      this._descriptionBox.remove_child(this._label);
-      this._descriptionBox.insert_child_at_index(this._entry, 0);
-
-      this._entry.clutter_text.connectObject(
-        "key-focus-out", () => { this._finishEdit(); },
-        "activate", () => { this._finishEdit(); });
-
+      this._editButton.reactive = false;
+      this._entry.visible = true;
+      this._label.visible = false;
       this._entry.grab_key_focus();
     }
 
     _finishEdit() {
       const newLabel = this._entry.get_text().trim();
+      let changed = false;
       if (newLabel && newLabel !== this._preset.label) {
         this._preset.label = newLabel;
-        this._callbacks.onEdit(this._preset);
+        this._label.text = newLabel;
+        changed = true;
       }
-
-      this._label.text = this._preset.label;
-      this._descriptionBox.remove_child(this._entry);
-      this._descriptionBox.insert_child_at_index(this._label, 0);
+      this._entry.visible = false;
+      this._label.visible = true;
+      this._editButton.reactive = true;
+      if (changed) this._callbacks.onEdit(this._preset);
     }
   },
 );
@@ -125,7 +130,8 @@ const Indicator = GObject.registerClass(
       super._init(0.0, _("Monitor Presets"));
       this._settings = settings;
       this._settings.connectObject(
-        "changed::presets", () => this.setItems(this._loadItems()),
+        "changed::presets",
+        () => this.setItems(this._loadItems()),
         this,
       );
       this.add_child(
@@ -169,8 +175,15 @@ const Indicator = GObject.registerClass(
     }
 
     async _applyPreset(preset) {
-      const serial = await getDisplaySerial();
-      await applyMonitorConfig(serial, preset, {});
+      try {
+        const serial = await getDisplaySerial();
+        await applyMonitorConfig(serial, preset, {});
+      } catch (e) {
+        if (e instanceof Gio.DBusError) {
+          Gio.DBusError.strip_remote_error(e);
+        }
+        Main.notifyError("Applying monitor preset failed", e.message);
+      }
     }
 
     _saveEditedPreset(preset) {
@@ -211,12 +224,6 @@ const Indicator = GObject.registerClass(
     addItem(label, blob) {
       const items = this._loadItems();
       items.push({ id: GLib.uuid_string_random(), label, blob });
-      this._saveItems(items);
-    }
-
-    removeItem(index) {
-      const items = this._loadItems();
-      items.splice(index, 1);
       this._saveItems(items);
     }
   },
