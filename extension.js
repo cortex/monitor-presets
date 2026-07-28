@@ -284,7 +284,7 @@ const Indicator = GObject.registerClass(
   },
 );
 
-export default class IndicatorExampleExtension extends Extension {
+export default class MonitorPresetsExtension extends Extension {
   enable() {
     this._settings = this.getSettings();
     this._indicator = new Indicator(this._settings);
