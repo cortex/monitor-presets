@@ -102,6 +102,7 @@ const PresetMenuItem = GObject.registerClass(
         this._callbacks.onActivate(this._preset);
       });
       this._startEditLaterId = 0;
+      this._finishEditIdleId = 0;
       if (preset.new) {
         this._startEditLaterId = global.compositor
           .get_laters()
@@ -115,6 +116,10 @@ const PresetMenuItem = GObject.registerClass(
       if (this._startEditLaterId) {
         global.compositor.get_laters().remove(this._startEditLaterId);
         this._startEditLaterId = 0;
+      }
+      if (this._finishEditIdleId) {
+        GLib.source_remove(this._finishEditIdleId);
+        this._finishEditIdleId = 0;
       }
       super.destroy();
     }
@@ -143,7 +148,8 @@ const PresetMenuItem = GObject.registerClass(
       this._label.visible = true;
       if (changed) {
         const preset = this._preset;
-        GLib.idle_add(GLib.PRIORITY_DEFAULT_IDLE, () => {
+        this._finishEditIdleId = GLib.idle_add(GLib.PRIORITY_DEFAULT_IDLE, () => {
+          this._finishEditIdleId = 0;
           this._callbacks.onEdit(preset);
           return GLib.SOURCE_REMOVE;
         });
@@ -169,7 +175,7 @@ const Indicator = GObject.registerClass(
         }),
       );
       this._presets = [];
-      this.menu.connect("open-state-changed", (menu, open) => {
+      this.menu.connectObject("open-state-changed", (menu, open) => {
         if (!open) this._finishAllEdits();
       });
       this.setItems(this._loadItems());
