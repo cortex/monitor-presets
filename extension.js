@@ -83,6 +83,11 @@ const PresetMenuItem = GObject.registerClass(
       });
     }
 
+    destroy() {
+        this._entry?.clutter_text.disconnectObject(this);
+        super.destroy();
+    }
+
     _startEdit() {
       this._entry = new St.Entry({
         text: this._preset.label,
@@ -119,8 +124,9 @@ const Indicator = GObject.registerClass(
     _init(settings) {
       super._init(0.0, _("Monitor Presets"));
       this._settings = settings;
-      this._settingsChangedId = this._settings.connectObject(
+      this._settings.connectObject(
         "changed::presets", () => this.setItems(this._loadItems()),
+        this,
       );
       this.add_child(
         new St.Icon({
@@ -132,8 +138,9 @@ const Indicator = GObject.registerClass(
       this.setItems(this._loadItems());
       this._rebuildMenu();
     }
-    _onDestroy() {
-      this._settings.disconnect("changed::presets");
+    destroy() {
+      this._settings.disconnectObject(this);
+      super.destroy();
     }
     _rebuildMenu() {
       this.menu.removeAll();
@@ -223,7 +230,6 @@ export default class IndicatorExampleExtension extends Extension {
   }
 
   disable() {
-    this._settings.disconnect(this._settingsChangedId);
     this._indicator.destroy();
     this._indicator = null;
     this._settings = null;
