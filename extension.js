@@ -1,15 +1,17 @@
 // Copyright (c) 2026 Joakim Lundborg
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import GObject from "gi://GObject";
-import St from "gi://St";
+import Clutter from "gi://Clutter";
 import Gio from "gi://Gio";
 import GLib from "gi://GLib";
+import GObject from "gi://GObject";
+import St from "gi://St";
 
 import {
   Extension,
   gettext as _,
 } from "resource:///org/gnome/shell/extensions/extension.js";
+
 import * as PanelMenu from "resource:///org/gnome/shell/ui/panelMenu.js";
 import * as PopupMenu from "resource:///org/gnome/shell/ui/popupMenu.js";
 import * as Main from "resource:///org/gnome/shell/ui/main.js";
@@ -111,7 +113,7 @@ const PresetMenuItem = GObject.registerClass(
     }
   },
 );
-import Clutter from "gi://Clutter";
+
 const Indicator = GObject.registerClass(
   class Indicator extends PanelMenu.Button {
     _init(settings) {
