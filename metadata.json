@@ -3,7 +3,8 @@
   "description": "Save monitor presets, with enabled monitors, resolution, dpi",
   "uuid": "monitor-presets@kretskonst.se",
   "shell-version": [
-    "50"
+    "50",
+    "51"
   ],
   "settings-schema": "org.gnome.shell.extensions.monitor-presets",
   "donations":{

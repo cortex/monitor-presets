@@ -26,7 +26,7 @@ const PresetMenuItem = GObject.registerClass(
       this._callbacks = callbacks; // { onActivate, onEdit, onDelete }
 
       this._descriptionBox = new St.BoxLayout({
-        vertical: true,
+        orientation: Clutter.Orientation.VERTICAL,
         x_expand: true,
         style_class: "dimmed",
       });
@@ -68,7 +68,7 @@ const PresetMenuItem = GObject.registerClass(
       this.add_child(this._descriptionBox);
 
       const buttonBox = new St.BoxLayout({
-        vertical: false,
+        orientation: Clutter.Orientation.HORIZONTAL,
         y_align: Clutter.ActorAlign.CENTER,
         style_class: "quick-settings-grid",
       });
